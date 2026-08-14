@@ -1,12 +1,14 @@
 """Result definitions for ScrapePro."""
 
+from scrapepro.core.record import Record
+
 
 class ScrapeResult:
     """Represent the result of a scraping task."""
 
     def __init__(
         self,
-        records: list | None = None,
+        records: list[Record] | None = None,
         errors: list | None = None,
     ) -> None:
         """Initialize a scrape result."""
