@@ -14,7 +14,9 @@ authors = [
     {name = "Qudratullah", email = "qudratullahqu8@gmail.com"}
 ]
 
-dependencies = []
+dependencies = [
+    "requests>=2.31",
+]
 
 [project.optional-dependencies]
 dev = [
