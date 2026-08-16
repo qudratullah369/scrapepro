@@ -107,9 +107,21 @@ def test_build_scraper_rejects_unsupported_source():
 
 def test_cli_main_executes_scrape_and_prints_result(monkeypatch, capsys):
     from scrapepro.cli import main as cli
+    from scrapepro.core.record import Record
 
     class FakeResult:
-        records = ["record-1", "record-2"]
+        records = [
+            Record(
+                name="Cafe Test A",
+                address="Islamabad, Pakistan",
+                rating=4.5,
+            ),
+            Record(
+                name="Cafe Test B",
+                address="Blue Area, Islamabad, Pakistan",
+                rating=4.2,
+            ),
+        ]
         errors = ["test error"]
 
     class FakeScraper:
@@ -168,3 +180,56 @@ def test_cli_main_executes_scrape_and_prints_result(monkeypatch, capsys):
     assert fake_scraper.received_task.source == "google_maps"
     assert fake_scraper.received_task.query == "restaurants"
     assert fake_scraper.received_task.location == "Islamabad"
+
+
+def test_cli_main_prints_scraped_records(monkeypatch, capsys):
+    from scrapepro.cli import main as cli
+    from scrapepro.core.record import Record
+
+    class FakeResult:
+        records = [
+            Record(
+                name="Cafe A",
+                address="Main Street, Islamabad, Pakistan",
+                rating=4.7,
+            ),
+            Record(
+                name="Cafe B",
+                address="Blue Area, Islamabad, Pakistan",
+                rating=4.2,
+            ),
+        ]
+        errors = []
+
+    class FakeScraper:
+        def scrape(self, task):
+            return FakeResult()
+
+    monkeypatch.setattr(cli, "Settings", lambda: object())
+    monkeypatch.setattr(
+        cli,
+        "build_scraper",
+        lambda source, settings: FakeScraper(),
+    )
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "cafes",
+            "--location",
+            "Islamabad",
+        ],
+    )
+
+    cli.main()
+
+    captured = capsys.readouterr()
+
+    assert "Records: 2" in captured.out
+    assert "1. Cafe A | Main Street, Islamabad, Pakistan | Rating: 4.7" in captured.out
+    assert "2. Cafe B | Blue Area, Islamabad, Pakistan | Rating: 4.2" in captured.out

@@ -84,6 +84,13 @@ def main() -> None:
 
         print(f"Records: {len(result.records)}")
 
+        for index, record in enumerate(result.records, start=1):
+            print(
+                f"{index}. {record.name} | "
+                f"{record.address} | "
+                f"Rating: {record.rating}"
+            )
+
         if result.errors:
             for error in result.errors:
                 print(f"Error: {error}")
