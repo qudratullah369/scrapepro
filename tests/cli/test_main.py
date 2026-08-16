@@ -277,3 +277,101 @@ def test_build_scrape_task_includes_output_format():
     task = build_scrape_task(args)
 
     assert task.output == "json"
+
+def test_build_exporter_supports_output_formats():
+    from scrapepro.cli.main import build_exporter
+    from scrapepro.exporters.csv import CSVExporter
+    from scrapepro.exporters.json import JSONExporter
+    from scrapepro.exporters.excel import ExcelExporter
+
+    assert isinstance(build_exporter("csv"), CSVExporter)
+    assert isinstance(build_exporter("json"), JSONExporter)
+    assert isinstance(build_exporter("excel"), ExcelExporter)
+    assert build_exporter(None) is None
+
+def test_build_export_path_uses_query_and_location():
+    from scrapepro.cli.main import build_export_path
+
+    path = build_export_path(
+        output_format="csv",
+        query="restaurants",
+        location="Islamabad",
+    )
+
+    assert path.name == "restaurants_Islamabad.csv"
+
+def test_cli_main_exports_records_when_output_requested(
+    monkeypatch,
+    capsys,
+    tmp_path,
+):
+    from scrapepro.cli import main as cli
+    from scrapepro.core.record import Record
+
+    class FakeResult:
+        records = [
+            Record(
+                name="Cafe Export",
+                address="Islamabad, Pakistan",
+                rating=4.5,
+            )
+        ]
+        errors = []
+
+    class FakeScraper:
+        def scrape(self, task):
+            return FakeResult()
+
+    class FakeExporter:
+        def __init__(self):
+            self.received_records = None
+            self.received_path = None
+
+        def export(self, records, path):
+            self.received_records = records
+            self.received_path = path
+
+    fake_exporter = FakeExporter()
+
+    monkeypatch.setattr(cli, "Settings", lambda: object())
+    monkeypatch.setattr(
+        cli,
+        "build_scraper",
+        lambda source, settings: FakeScraper(),
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_exporter",
+        lambda output_format: fake_exporter,
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_export_path",
+        lambda output_format, query, location: (
+            tmp_path / "cafes.csv"
+        ),
+    )
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "cafes",
+            "--location",
+            "Islamabad",
+            "--output",
+            "csv",
+        ],
+    )
+
+    cli.main()
+
+    captured = capsys.readouterr()
+
+    assert fake_exporter.received_records == FakeResult.records
+    assert fake_exporter.received_path == tmp_path / "cafes.csv"
+    assert "Exported:" in captured.out
