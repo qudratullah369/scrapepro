@@ -176,3 +176,123 @@ def test_google_maps_client_invalid_max_pages():
         assert False, "Expected ValueError"
     except ValueError as exc:
         assert str(exc) == "max_pages must be at least 1."
+def test_google_maps_missing_location():
+    scraper = GoogleMapsScraper(
+        api_key="dummy",
+        client=MockClient(),
+        resolver=MockResolver(),
+    )
+
+    task = ScrapeTask(
+        source="google_maps",
+        query="restaurants",
+        location="",
+    )
+
+    result = scraper.scrape(task)
+
+    assert result.success is False
+    assert result.count == 0
+    assert result.errors == [
+        "Location is required for Google Maps scraping."
+    ]
+
+
+class FailingResolver:
+    def resolve(self, location):
+        return None
+
+
+def test_google_maps_location_resolution_failure():
+    scraper = GoogleMapsScraper(
+        api_key="dummy",
+        client=MockClient(),
+        resolver=FailingResolver(),
+    )
+
+    task = ScrapeTask(
+        source="google_maps",
+        query="restaurants",
+        location="Unknown Place",
+    )
+
+    result = scraper.scrape(task)
+
+    assert result.success is False
+    assert result.count == 0
+    assert result.errors == [
+        "Could not resolve location: Unknown Place"
+    ]
+
+
+class FailingClient:
+    def search_text(self, query, lat, lng, radius=5000):
+        from scrapepro.scrapers.google_maps_client import GoogleAPIError
+
+        raise GoogleAPIError("Google API error: test failure")
+
+
+def test_google_maps_api_error():
+    scraper = GoogleMapsScraper(
+        api_key="dummy",
+        client=FailingClient(),
+        resolver=MockResolver(),
+    )
+
+    task = ScrapeTask(
+        source="google_maps",
+        query="restaurants",
+        location="Islamabad",
+    )
+
+    result = scraper.scrape(task)
+
+    assert result.success is False
+    assert result.count == 0
+    assert result.errors == [
+        "Google API error: test failure"
+    ]
+
+
+def test_google_maps_skips_incomplete_places():
+    scraper = GoogleMapsScraper(
+        api_key="dummy",
+        client=MockClient(),
+        resolver=MockResolver(),
+    )
+
+    incomplete_places = [
+        {
+            "displayName": {"text": ""},
+            "formattedAddress": "Main St",
+        },
+        {
+            "displayName": {"text": "Valid Cafe"},
+            "formattedAddress": "",
+        },
+        {
+            "displayName": {"text": "Complete Cafe"},
+            "formattedAddress": "Complete Address",
+            "rating": 4.5,
+        },
+    ]
+
+    class IncompleteDataClient:
+        def search_text(self, query, lat, lng, radius=5000):
+            return incomplete_places
+
+    scraper.client = IncompleteDataClient()
+
+    task = ScrapeTask(
+        source="google_maps",
+        query="restaurants",
+        location="Islamabad",
+    )
+
+    result = scraper.scrape(task)
+
+    assert result.success is True
+    assert result.errors == []
+    assert result.count == 1
+    assert result.records[0].name == "Complete Cafe"
+    assert result.records[0].address == "Complete Address"
