@@ -1,8 +1,11 @@
 """Command-line interface for ScrapePro."""
 
 import argparse
+import sys
 
+from scrapepro.config.settings import Settings
 from scrapepro.core.task import ScrapeTask
+from scrapepro.scrapers.google_maps import GoogleMapsScraper
 from scrapepro.version import __version__
 
 
@@ -58,14 +61,32 @@ def build_scrape_task(args: argparse.Namespace) -> ScrapeTask:
     )
 
 
+def build_scraper(source: str, settings: Settings):
+    """Build the scraper for a configured source."""
+    if source == "google_maps":
+        return GoogleMapsScraper(
+            api_key=settings.require_google_maps_api_key()
+        )
+
+    raise ValueError(f"Unsupported scraping source: {source}")
+
+
 def main() -> None:
     """Run the ScrapePro command-line interface."""
     parser = build_parser()
     args = parser.parse_args()
 
     if args.command == "scrape":
+        settings = Settings()
         task = build_scrape_task(args)
-        print(task)
+        scraper = build_scraper(task.source, settings)
+        result = scraper.scrape(task)
+
+        print(f"Records: {len(result.records)}")
+
+        if result.errors:
+            for error in result.errors:
+                print(f"Error: {error}")
 
 
 if __name__ == "__main__":

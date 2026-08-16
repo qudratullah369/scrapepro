@@ -78,3 +78,93 @@ def test_build_scrape_task_creates_scrape_task():
     assert task.source == "google_maps"
     assert task.query == "restaurants"
     assert task.location == "Islamabad"
+
+
+def test_build_scraper_supports_google_maps(monkeypatch):
+    from scrapepro.cli.main import build_scraper
+    from scrapepro.config.settings import Settings
+    from scrapepro.scrapers.google_maps import GoogleMapsScraper
+
+    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test-api-key")
+
+    scraper = build_scraper("google_maps", Settings())
+
+    assert isinstance(scraper, GoogleMapsScraper)
+    assert scraper.api_key == "test-api-key"
+
+
+def test_build_scraper_rejects_unsupported_source():
+    from scrapepro.cli.main import build_scraper
+    from scrapepro.config.settings import Settings
+
+    try:
+        build_scraper("unknown", Settings())
+    except ValueError as exc:
+        assert str(exc) == "Unsupported scraping source: unknown"
+    else:
+        raise AssertionError("Expected unsupported source to raise ValueError.")
+
+
+def test_cli_main_executes_scrape_and_prints_result(monkeypatch, capsys):
+    from scrapepro.cli import main as cli
+
+    class FakeResult:
+        records = ["record-1", "record-2"]
+        errors = ["test error"]
+
+    class FakeScraper:
+        def __init__(self):
+            self.received_task = None
+
+        def scrape(self, task):
+            self.received_task = task
+            return FakeResult()
+
+    fake_scraper = FakeScraper()
+
+    monkeypatch.setattr(
+        cli,
+        "Settings",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_scraper",
+        lambda source, settings: fake_scraper,
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_scrape_task",
+        lambda args: __import__(
+            "scrapepro.core.task",
+            fromlist=["ScrapeTask"],
+        ).ScrapeTask(
+            source=args.source,
+            query=args.query,
+            location=args.location,
+        ),
+    )
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "restaurants",
+            "--location",
+            "Islamabad",
+        ],
+    )
+
+    cli.main()
+
+    captured = capsys.readouterr()
+
+    assert "Records: 2" in captured.out
+    assert "Error: test error" in captured.out
+    assert fake_scraper.received_task.source == "google_maps"
+    assert fake_scraper.received_task.query == "restaurants"
+    assert fake_scraper.received_task.location == "Islamabad"
