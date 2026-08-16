@@ -128,6 +128,50 @@ class SQLiteStorage:
 
         return cursor.fetchone()[0]
 
+    def get_all(self) -> list[Record]:
+        """Return all stored records."""
+        cursor = self.connection.execute(
+            """
+            SELECT
+                name,
+                category,
+                phone,
+                website,
+                address,
+                city,
+                country,
+                latitude,
+                longitude,
+                rating,
+                reviews,
+                source,
+                place_id
+            FROM records
+            ORDER BY id
+            """
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            Record(
+                name=row[0],
+                category=row[1],
+                phone=row[2],
+                website=row[3],
+                address=row[4],
+                city=row[5],
+                country=row[6],
+                latitude=row[7],
+                longitude=row[8],
+                rating=row[9],
+                reviews=row[10],
+                source=row[11],
+                place_id=row[12],
+            )
+            for row in rows
+        ]
+
     def close(self) -> None:
         """Close the database connection."""
         self.connection.close()

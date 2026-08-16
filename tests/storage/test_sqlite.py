@@ -92,3 +92,53 @@ def test_sqlite_storage_handles_empty_save_many(tmp_path):
     assert storage.count() == 0
 
     storage.close()
+
+
+def test_sqlite_storage_get_all_returns_records(tmp_path):
+    storage = SQLiteStorage(tmp_path / "records.db")
+
+    records = [
+        Record(
+            name="Cafe A",
+            category="cafe",
+            address="Islamabad, Pakistan",
+            city="Islamabad",
+            country="Pakistan",
+            rating=4.7,
+            reviews=120,
+            source="google_maps",
+            place_id="p1",
+        ),
+        Record(
+            name="Cafe B",
+            category="restaurant",
+            address="Lahore, Pakistan",
+            city="Lahore",
+            country="Pakistan",
+            rating=4.2,
+            reviews=80,
+            source="google_maps",
+            place_id="p2",
+        ),
+    ]
+
+    storage.save_many(records)
+
+    result = storage.get_all()
+
+    assert len(result) == 2
+
+    assert result[0] == records[0]
+    assert result[1] == records[1]
+
+    storage.close()
+
+
+def test_sqlite_storage_get_all_returns_empty_list(tmp_path):
+    storage = SQLiteStorage(tmp_path / "records.db")
+
+    result = storage.get_all()
+
+    assert result == []
+
+    storage.close()
