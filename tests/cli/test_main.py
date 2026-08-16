@@ -233,3 +233,47 @@ def test_cli_main_prints_scraped_records(monkeypatch, capsys):
     assert "Records: 2" in captured.out
     assert "1. Cafe A | Main Street, Islamabad, Pakistan | Rating: 4.7" in captured.out
     assert "2. Cafe B | Blue Area, Islamabad, Pakistan | Rating: 4.2" in captured.out
+
+
+def test_cli_parser_supports_output_format():
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "restaurants",
+            "--location",
+            "Islamabad",
+            "--output",
+            "csv",
+        ]
+    )
+
+    assert args.output == "csv"
+
+
+def test_build_scrape_task_includes_output_format():
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "restaurants",
+            "--location",
+            "Islamabad",
+            "--output",
+            "json",
+        ]
+    )
+
+    from scrapepro.cli.main import build_scrape_task
+
+    task = build_scrape_task(args)
+
+    assert task.output == "json"

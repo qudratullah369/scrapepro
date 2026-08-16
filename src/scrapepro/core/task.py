@@ -9,11 +9,13 @@ class ScrapeTask:
         source: str,
         query: str,
         location: str | None = None,
+        output: str | None = None,
     ) -> None:
         """Initialize a scraping task."""
         self.source = source
         self.query = query
         self.location = location
+        self.output = output
 
     def __repr__(self) -> str:
         """Return a readable representation of the task."""
@@ -21,6 +23,7 @@ class ScrapeTask:
             f"ScrapeTask("
             f"source={self.source!r}, "
             f"query={self.query!r}, "
-            f"location={self.location!r}"
+            f"location={self.location!r}, "
+            f"output={self.output!r}"
             f")"
         )

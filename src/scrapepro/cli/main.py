@@ -49,6 +49,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Search location.",
     )
 
+    scrape_parser.add_argument(
+        "--output",
+        choices=["csv", "json", "excel"],
+        default=None,
+        help="Export format.",
+    )
+
     return parser
 
 
@@ -58,6 +65,7 @@ def build_scrape_task(args: argparse.Namespace) -> ScrapeTask:
         source=args.source,
         query=args.query,
         location=args.location,
+        output=args.output,
     )
 
 
