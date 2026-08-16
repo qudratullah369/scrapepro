@@ -2,9 +2,11 @@ import csv
 import json
 
 import pytest
+from openpyxl import load_workbook
 
 from scrapepro.core.record import Record
 from scrapepro.exporters.csv import CSVExporter
+from scrapepro.exporters.excel import ExcelExporter
 from scrapepro.exporters.json import JSONExporter
 from scrapepro.processors.export import ExportProcessor
 
@@ -26,23 +28,28 @@ def test_export_processor_exports_records(tmp_path):
 
     csv_path = tmp_path / "cafes.csv"
     json_path = tmp_path / "cafes.json"
+    excel_path = tmp_path / "cafes.xlsx"
 
     processor = ExportProcessor(
         exporters=[
             CSVExporter(),
             JSONExporter(),
+            ExcelExporter(),
         ],
         output_paths=[
             csv_path,
             json_path,
+            excel_path,
         ],
     )
 
     result = processor.process(records)
 
     assert result == records
+
     assert csv_path.exists()
     assert json_path.exists()
+    assert excel_path.exists()
 
     with csv_path.open(
         "r",
@@ -51,8 +58,10 @@ def test_export_processor_exports_records(tmp_path):
     ) as file:
         rows = list(csv.DictReader(file))
 
+    assert len(rows) == 1
     assert rows[0]["name"] == "Cafe A"
     assert rows[0]["city"] == "Islamabad"
+    assert rows[0]["country"] == "Pakistan"
 
     with json_path.open(
         "r",
@@ -60,36 +69,67 @@ def test_export_processor_exports_records(tmp_path):
     ) as file:
         data = json.load(file)
 
+    assert len(data) == 1
     assert data[0]["name"] == "Cafe A"
+    assert data[0]["city"] == "Islamabad"
     assert data[0]["country"] == "Pakistan"
+
+    workbook = load_workbook(excel_path)
+    worksheet = workbook["Records"]
+
+    assert worksheet["A2"].value == "Cafe A"
+    assert worksheet["F2"].value == "Islamabad"
+    assert worksheet["G2"].value == "Pakistan"
+    assert worksheet["J2"].value == 4.7
+    assert worksheet["K2"].value == 120
+    assert worksheet["L2"].value == "google_maps"
+    assert worksheet["M2"].value == "p1"
+
+    workbook.close()
 
 
 def test_export_processor_handles_empty_records(tmp_path):
     csv_path = tmp_path / "empty.csv"
     json_path = tmp_path / "empty.json"
+    excel_path = tmp_path / "empty.xlsx"
 
     processor = ExportProcessor(
         exporters=[
             CSVExporter(),
             JSONExporter(),
+            ExcelExporter(),
         ],
         output_paths=[
             csv_path,
             json_path,
+            excel_path,
         ],
     )
 
     result = processor.process([])
 
     assert result == []
+
     assert csv_path.exists()
     assert json_path.exists()
+    assert excel_path.exists()
 
     with json_path.open(
         "r",
         encoding="utf-8",
     ) as file:
         assert json.load(file) == []
+
+    workbook = load_workbook(excel_path)
+    worksheet = workbook["Records"]
+
+    assert worksheet.max_row == 1
+    assert [
+        cell.value
+        for cell in worksheet[1]
+    ] == ExcelExporter.fieldnames
+
+    workbook.close()
 
 
 def test_export_processor_requires_matching_exporters_and_paths(
