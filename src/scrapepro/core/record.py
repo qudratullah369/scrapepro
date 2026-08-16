@@ -18,3 +18,5 @@ class Record:
     reviews: int | None = None
     source: str = "unknown"
     place_id: str | None = None
+    city: str | None = None
+    country: str | None = None
