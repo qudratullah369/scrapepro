@@ -142,3 +142,37 @@ def test_sqlite_storage_get_all_returns_empty_list(tmp_path):
     assert result == []
 
     storage.close()
+
+
+def test_sqlite_storage_get_by_id_returns_record(tmp_path):
+    storage = SQLiteStorage(tmp_path / "records.db")
+
+    record = Record(
+        name="Cafe A",
+        category="cafe",
+        address="Islamabad, Pakistan",
+        city="Islamabad",
+        country="Pakistan",
+        rating=4.7,
+        reviews=120,
+        source="google_maps",
+        place_id="p1",
+    )
+
+    storage.save(record)
+
+    result = storage.get_by_id(1)
+
+    assert result == record
+
+    storage.close()
+
+
+def test_sqlite_storage_get_by_id_returns_none_for_missing_id(tmp_path):
+    storage = SQLiteStorage(tmp_path / "records.db")
+
+    result = storage.get_by_id(999)
+
+    assert result is None
+
+    storage.close()
