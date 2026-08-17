@@ -193,3 +193,42 @@ def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
         exported["records"][0], dict
     ) else exported["records"][0].name == "Cafe Export"
     assert Path(exported["path"]).name == "cafes_Islamabad.csv"
+
+def test_scrape_endpoint_rejects_unsupported_source():
+    response = client.post(
+        "/scrape",
+        json={
+            "source": "unknown",
+            "query": "cafes",
+            "location": "Islamabad",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_scrape_endpoint_rejects_empty_query():
+    response = client.post(
+        "/scrape",
+        json={
+            "source": "google_maps",
+            "query": "",
+            "location": "Islamabad",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_scrape_endpoint_rejects_invalid_output():
+    response = client.post(
+        "/scrape",
+        json={
+            "source": "google_maps",
+            "query": "cafes",
+            "location": "Islamabad",
+            "output": "pdf",
+        },
+    )
+
+    assert response.status_code == 422
