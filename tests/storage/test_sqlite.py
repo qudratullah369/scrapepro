@@ -207,3 +207,30 @@ def test_sqlite_storage_rejects_duplicate_place_id(tmp_path):
     assert storage.count() == 1
 
     storage.close()
+def test_sqlite_storage_find_by_place_id_returns_record(tmp_path):
+    storage = SQLiteStorage(tmp_path / "records.db")
+
+    record = Record(
+        name="Cafe A",
+        address="Islamabad, Pakistan",
+        source="google_maps",
+        place_id="p1",
+    )
+
+    storage.save(record)
+
+    result = storage.find_by_place_id("p1")
+
+    assert result == record
+
+    storage.close()
+
+
+def test_sqlite_storage_find_by_place_id_returns_none_when_missing(tmp_path):
+    storage = SQLiteStorage(tmp_path / "records.db")
+
+    result = storage.find_by_place_id("missing")
+
+    assert result is None
+
+    storage.close()
