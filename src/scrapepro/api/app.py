@@ -18,12 +18,16 @@ from scrapepro.processors.storage import StorageProcessor
 from scrapepro.processors.validator import Validator
 from scrapepro.scrapers.google_maps import GoogleMapsScraper
 from scrapepro.storage.sqlite import SQLiteStorage
+from scrapepro.jobs.service import JobService
+from scrapepro.jobs.store import JobStore
 
 
 app = FastAPI(
     title="ScrapePro API",
     version="0.1.0",
 )
+
+job_store = JobStore()
 
 
 class ScrapeRequest(BaseModel):
@@ -75,7 +79,7 @@ def health() -> dict[str, str]:
 
 @app.post("/scrape")
 def create_scrape(request: ScrapeRequest) -> dict[str, object]:
-    """Run a scraping task through the ScrapeEngine."""
+    """Create and execute a scraping job."""
     task = ScrapeTask(
         source=request.source,
         query=request.query,
@@ -92,12 +96,33 @@ def create_scrape(request: ScrapeRequest) -> dict[str, object]:
         pipeline=pipeline,
     )
 
-    result = engine.run(task)
+    service = JobService(job_store, engine)
+    job = service.create_and_run(task)
 
     return {
-        "status": "completed" if result.success else "failed",
-        "success": result.success,
-        "count": result.count,
-        "errors": result.errors,
-        "records": [asdict(record) for record in result.records],
+        "job_id": job.job_id,
+        "status": job.status,
+        "count": job.count,
+        "errors": job.errors,
+        "records": job.records,
+    }
+
+
+@app.get("/jobs/{job_id}")
+def get_job(job_id: str) -> dict[str, object]:
+    """Return the current state of a scraping job."""
+    job = job_store.get(job_id)
+
+    if job is None:
+        return {
+            "status": "not_found",
+            "job_id": job_id,
+        }
+
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "count": job.count,
+        "errors": job.errors,
+        "records": job.records,
     }

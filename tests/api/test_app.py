@@ -27,26 +27,17 @@ class FakeRecord:
 
 
 class FakeEngine:
-    def __init__(self, scraper, pipeline):
-        self.scraper = scraper
-        self.pipeline = pipeline
+    def __init__(self, result):
+        self.result = result
 
     def run(self, task):
         assert task.source == "google_maps"
         assert task.query == "cafes"
         assert task.location == "Islamabad"
-
-        return ScrapeResult(
-            records=[
-                FakeRecord(
-                    name="Cafe A",
-                    address="Main Street, Islamabad, Pakistan",
-                )
-            ]
-        )
+        return self.result
 
 
-def test_scrape_endpoint_runs_engine(monkeypatch):
+def test_scrape_endpoint_creates_job(monkeypatch):
     monkeypatch.setattr(
         app_module,
         "build_scraper",
@@ -62,7 +53,16 @@ def test_scrape_endpoint_runs_engine(monkeypatch):
     monkeypatch.setattr(
         app_module,
         "ScrapeEngine",
-        FakeEngine,
+        lambda scraper, pipeline: FakeEngine(
+            ScrapeResult(
+                records=[
+                    FakeRecord(
+                        name="Cafe A",
+                        address="Main Street, Islamabad, Pakistan",
+                    )
+                ]
+            )
+        ),
     )
 
     response = client.post(
@@ -75,18 +75,36 @@ def test_scrape_endpoint_runs_engine(monkeypatch):
     )
 
     assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["job_id"]
+    assert data["status"] == "completed"
+    assert data["count"] == 1
+    assert data["errors"] == []
+    assert data["records"] == [
+        {
+            "name": "Cafe A",
+            "address": "Main Street, Islamabad, Pakistan",
+            "source": "google_maps",
+        }
+    ]
+
+    job_id = data["job_id"]
+
+    job_response = client.get(f"/jobs/{job_id}")
+
+    assert job_response.status_code == 200
+    assert job_response.json() == data
+
+
+def test_get_missing_job():
+    response = client.get("/jobs/missing-job")
+
+    assert response.status_code == 200
     assert response.json() == {
-        "status": "completed",
-        "success": True,
-        "count": 1,
-        "errors": [],
-        "records": [
-            {
-                "name": "Cafe A",
-                "address": "Main Street, Islamabad, Pakistan",
-                "source": "google_maps",
-            }
-        ],
+        "status": "not_found",
+        "job_id": "missing-job",
     }
 
 
