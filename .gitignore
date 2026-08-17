@@ -55,3 +55,6 @@ data/exports/*
 *.sqlite
 *.sqlite3
 
+
+# ScrapePro local SQLite database
+scrapepro.db
