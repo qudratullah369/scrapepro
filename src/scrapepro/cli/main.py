@@ -3,7 +3,8 @@
 import argparse
 import sys
 from pathlib import Path
-
+from scrapepro.processors.storage import StorageProcessor
+from scrapepro.storage.sqlite import SQLiteStorage
 from scrapepro.config.settings import Settings
 from scrapepro.core.task import ScrapeTask
 from scrapepro.core.engine import ScrapeEngine
@@ -64,6 +65,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Export format.",
     )
+    scrape_parser.add_argument(
+        "--database",
+        default="scrapepro.db",
+        help="SQLite database path.",
+    )
 
     return parser
 
@@ -75,6 +81,7 @@ def build_scrape_task(args: argparse.Namespace) -> ScrapeTask:
         query=args.query,
         location=args.location,
         output=args.output,
+        database=args.database,
     )
 
 
@@ -88,14 +95,19 @@ def build_scraper(source: str, settings: Settings):
     raise ValueError(f"Unsupported scraping source: {source}")
 
 
-def build_pipeline() -> Pipeline:
+def build_pipeline(database: str | Path) -> Pipeline:
     """Build the default ScrapePro processing pipeline."""
     pipeline = Pipeline()
+
     pipeline.add(Cleaner())
     pipeline.add(Normalizer())
     pipeline.add(Deduplicator())
     pipeline.add(Validator())
     pipeline.add(Enricher(LocationEnrichmentProvider()))
+
+    storage = SQLiteStorage(database)
+    pipeline.add(StorageProcessor(storage))
+
     return pipeline
 
 
@@ -151,7 +163,8 @@ def main() -> None:
             settings = Settings()
             task = build_scrape_task(args)
             scraper = build_scraper(task.source, settings)
-            pipeline = build_pipeline()
+            pipeline = build_pipeline(task.database)
+
             engine = ScrapeEngine(scraper, pipeline=pipeline)
             result = engine.run(task)
         except ValueError as exc:

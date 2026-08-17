@@ -154,6 +154,7 @@ def test_cli_main_executes_scrape_and_prints_result(monkeypatch, capsys):
             source=args.source,
             query=args.query,
             location=args.location,
+            database=args.database,
         ),
     )
     monkeypatch.setattr(
@@ -168,6 +169,8 @@ def test_cli_main_executes_scrape_and_prints_result(monkeypatch, capsys):
             "restaurants",
             "--location",
             "Islamabad",
+            "--database",
+            "scrapepro.db",
         ],
     )
 
@@ -563,14 +566,14 @@ def test_cli_main_passes_processing_pipeline_to_engine(
     pipeline = captured_pipeline["value"]
 
     assert isinstance(pipeline, Pipeline)
-    assert len(pipeline.steps) == 5
+    assert len(pipeline.steps) == 6
 
     assert pipeline.steps[0].__class__.__name__ == "Cleaner"
     assert pipeline.steps[1].__class__.__name__ == "Normalizer"
     assert pipeline.steps[2].__class__.__name__ == "Deduplicator"
     assert pipeline.steps[3].__class__.__name__ == "Validator"
     assert pipeline.steps[4].__class__.__name__ == "Enricher"
-
+    assert pipeline.steps[5].__class__.__name__ == "StorageProcessor"
     assert "Records: 1" in capsys.readouterr().out
 
 
