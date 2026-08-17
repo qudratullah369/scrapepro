@@ -176,3 +176,34 @@ def test_sqlite_storage_get_by_id_returns_none_for_missing_id(tmp_path):
     assert result is None
 
     storage.close()
+def test_sqlite_storage_rejects_duplicate_place_id(tmp_path):
+    storage = SQLiteStorage(tmp_path / "records.db")
+
+    first = Record(
+        name="Cafe A",
+        address="Islamabad, Pakistan",
+        source="google_maps",
+        place_id="p1",
+    )
+
+    second = Record(
+        name="Cafe B",
+        address="Lahore, Pakistan",
+        source="google_maps",
+        place_id="p1",
+    )
+
+    storage.save(first)
+
+    import sqlite3
+
+    try:
+        storage.save(second)
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Expected duplicate place_id to be rejected")
+
+    assert storage.count() == 1
+
+    storage.close()

@@ -30,7 +30,8 @@ class SQLiteStorage:
                 rating REAL,
                 reviews INTEGER,
                 source TEXT NOT NULL,
-                place_id TEXT
+                place_id TEXT UNIQUE
+                
             )
             """
         )
