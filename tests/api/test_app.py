@@ -1,3 +1,4 @@
+from pathlib import Path
 from dataclasses import dataclass
 
 from fastapi.testclient import TestClient
@@ -150,16 +151,20 @@ def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
 
     exported = {}
 
-    class FakeExporter:
-        def export(self, records, path):
+    class FakeExportService:
+        def export(self, records, output_format, query, location):
             exported["records"] = records
-            exported["path"] = path
-            return path
+            exported["output_format"] = output_format
+            exported["query"] = query
+            exported["location"] = location
+            output_path = tmp_path / "cafes_Islamabad.csv"
+            exported["path"] = output_path
+            return output_path
 
     monkeypatch.setattr(
         app_module,
-        "build_exporter",
-        lambda output_format: FakeExporter(),
+        "ExportService",
+        lambda: FakeExportService(),
     )
 
     monkeypatch.chdir(tmp_path)
@@ -181,10 +186,10 @@ def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
     assert data["status"] == "completed"
     assert data["count"] == 1
     assert data["output"] == "csv"
-    assert data["export_path"] == "cafes_Islamabad.csv"
+    assert Path(data["export_path"]).name == "cafes_Islamabad.csv"
 
     assert len(exported["records"]) == 1
     assert exported["records"][0]["name"] if isinstance(
         exported["records"][0], dict
     ) else exported["records"][0].name == "Cafe Export"
-    assert str(exported["path"]) == "cafes_Islamabad.csv"
+    assert Path(exported["path"]).name == "cafes_Islamabad.csv"
