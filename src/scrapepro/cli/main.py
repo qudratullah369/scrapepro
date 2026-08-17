@@ -7,6 +7,13 @@ from pathlib import Path
 from scrapepro.config.settings import Settings
 from scrapepro.core.task import ScrapeTask
 from scrapepro.core.engine import ScrapeEngine
+from scrapepro.core.pipeline import Pipeline
+from scrapepro.processors.cleaner import Cleaner
+from scrapepro.processors.deduplicator import Deduplicator
+from scrapepro.processors.enricher import Enricher
+from scrapepro.processors.location_enricher import LocationEnrichmentProvider
+from scrapepro.processors.normalizer import Normalizer
+from scrapepro.processors.validator import Validator
 from scrapepro.scrapers.google_maps import GoogleMapsScraper
 from scrapepro.version import __version__
 
@@ -81,6 +88,17 @@ def build_scraper(source: str, settings: Settings):
     raise ValueError(f"Unsupported scraping source: {source}")
 
 
+def build_pipeline() -> Pipeline:
+    """Build the default ScrapePro processing pipeline."""
+    pipeline = Pipeline()
+    pipeline.add(Cleaner())
+    pipeline.add(Normalizer())
+    pipeline.add(Deduplicator())
+    pipeline.add(Validator())
+    pipeline.add(Enricher(LocationEnrichmentProvider()))
+    return pipeline
+
+
 def build_exporter(output_format: str | None):
     """Build an exporter for the requested output format."""
     if output_format == "csv":
@@ -132,7 +150,8 @@ def main() -> None:
         settings = Settings()
         task = build_scrape_task(args)
         scraper = build_scraper(task.source, settings)
-        engine = ScrapeEngine(scraper)
+        pipeline = build_pipeline()
+        engine = ScrapeEngine(scraper, pipeline=pipeline)
         result = engine.run(task)
 
         print(f"Records: {len(result.records)}")

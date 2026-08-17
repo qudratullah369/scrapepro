@@ -372,7 +372,10 @@ def test_cli_main_exports_records_when_output_requested(
 
     captured = capsys.readouterr()
 
-    assert fake_exporter.received_records == FakeResult.records
+    assert len(fake_exporter.received_records) == 1
+    assert fake_exporter.received_records[0].name == "Cafe Export"
+    assert fake_exporter.received_records[0].city == "Islamabad"
+    assert fake_exporter.received_records[0].country == "Pakistan"
     assert fake_exporter.received_path == tmp_path / "cafes.csv"
     assert "Exported:" in captured.out
 
@@ -409,7 +412,7 @@ def test_cli_main_runs_scrape_through_engine(monkeypatch, capsys):
     monkeypatch.setattr(
         cli,
         "ScrapeEngine",
-        lambda scraper: fake_engine,
+        lambda scraper, pipeline=None: fake_engine,
     )
 
     monkeypatch.setattr(
@@ -436,3 +439,136 @@ def test_cli_main_runs_scrape_through_engine(monkeypatch, capsys):
     assert fake_engine.received_task.location == "Islamabad"
     assert "Records: 1" in captured.out
     assert "Engine Cafe" in captured.out
+
+def test_cli_main_builds_processing_pipeline(monkeypatch, capsys):
+    from scrapepro.cli import main as cli
+    from scrapepro.core.record import Record
+
+    class FakeResult:
+        records = [
+            Record(
+                name="Pipeline Cafe",
+                address="Main Street, Islamabad, Pakistan",
+                rating=4.9,
+            )
+        ]
+        errors = []
+
+    class FakeScraper:
+        def scrape(self, task):
+            raise AssertionError("CLI should use ScrapeEngine.")
+
+    class FakeEngine:
+        def __init__(self, scraper, pipeline=None):
+            self.scraper = scraper
+            self.pipeline = pipeline
+            self.received_task = None
+
+        def run(self, task):
+            self.received_task = task
+            return FakeResult()
+
+    fake_engine = FakeEngine
+
+    monkeypatch.setattr(cli, "Settings", lambda: object())
+    monkeypatch.setattr(
+        cli,
+        "build_scraper",
+        lambda source, settings: FakeScraper(),
+    )
+    monkeypatch.setattr(cli, "ScrapeEngine", fake_engine)
+
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "cafes",
+            "--location",
+            "Islamabad",
+        ],
+    )
+
+    cli.main()
+
+    captured = capsys.readouterr()
+
+    assert "Records: 1" in captured.out
+    assert "Pipeline Cafe" in captured.out
+
+def test_cli_main_passes_processing_pipeline_to_engine(
+    monkeypatch,
+    capsys,
+):
+    from scrapepro.cli import main as cli
+    from scrapepro.core.pipeline import Pipeline
+    from scrapepro.core.record import Record
+
+    class FakeResult:
+        records = [
+            Record(
+                name="Pipeline Cafe",
+                address="Main Street, Islamabad, Pakistan",
+                rating=4.9,
+            )
+        ]
+        errors = []
+
+    class FakeScraper:
+        def scrape(self, task):
+            raise AssertionError("Scraper should be called by ScrapeEngine.")
+
+    class FakeEngine:
+        def __init__(self, scraper, pipeline=None):
+            self.pipeline = pipeline
+
+        def run(self, task):
+            return FakeResult()
+
+    captured_pipeline = {}
+
+    def fake_engine(scraper, pipeline=None):
+        captured_pipeline["value"] = pipeline
+        return FakeEngine(scraper, pipeline)
+
+    monkeypatch.setattr(cli, "Settings", lambda: object())
+    monkeypatch.setattr(
+        cli,
+        "build_scraper",
+        lambda source, settings: FakeScraper(),
+    )
+    monkeypatch.setattr(cli, "ScrapeEngine", fake_engine)
+
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "cafes",
+            "--location",
+            "Islamabad",
+        ],
+    )
+
+    cli.main()
+
+    pipeline = captured_pipeline["value"]
+
+    assert isinstance(pipeline, Pipeline)
+    assert len(pipeline.steps) == 5
+
+    assert pipeline.steps[0].__class__.__name__ == "Cleaner"
+    assert pipeline.steps[1].__class__.__name__ == "Normalizer"
+    assert pipeline.steps[2].__class__.__name__ == "Deduplicator"
+    assert pipeline.steps[3].__class__.__name__ == "Validator"
+    assert pipeline.steps[4].__class__.__name__ == "Enricher"
+
+    assert "Records: 1" in capsys.readouterr().out
