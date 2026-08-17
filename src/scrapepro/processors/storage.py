@@ -2,13 +2,13 @@
 
 from scrapepro.core.record import Record
 from scrapepro.processors.base import BaseProcessor
-from scrapepro.storage.sqlite import SQLiteStorage
+from scrapepro.storage.base import BaseStorage
 
 
 class StorageProcessor(BaseProcessor):
     """Persist Record objects using a storage backend."""
 
-    def __init__(self, storage: SQLiteStorage) -> None:
+    def __init__(self, storage: BaseStorage) -> None:
         """Initialize the storage processor."""
         self.storage = storage
 
