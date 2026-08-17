@@ -572,3 +572,90 @@ def test_cli_main_passes_processing_pipeline_to_engine(
     assert pipeline.steps[4].__class__.__name__ == "Enricher"
 
     assert "Records: 1" in capsys.readouterr().out
+
+
+def test_cli_main_reports_scraping_errors(monkeypatch, capsys):
+    from scrapepro.cli import main as cli
+    from scrapepro.core.result import ScrapeResult
+
+    class FakeScraper:
+        pass
+
+    class FakeEngine:
+        def __init__(self, scraper, pipeline=None):
+            pass
+
+        def run(self, task):
+            return ScrapeResult(
+                records=[],
+                errors=["Google Maps request failed"],
+            )
+
+    monkeypatch.setattr(cli, "Settings", lambda: object())
+    monkeypatch.setattr(
+        cli,
+        "build_scraper",
+        lambda source, settings: FakeScraper(),
+    )
+    monkeypatch.setattr(cli, "ScrapeEngine", FakeEngine)
+
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "cafes",
+            "--location",
+            "Islamabad",
+        ],
+    )
+
+    cli.main()
+
+    captured = capsys.readouterr()
+
+    assert "Records: 0" in captured.out
+    assert "Error: Google Maps request failed" in captured.out
+
+
+def test_cli_main_handles_missing_google_maps_api_key(
+    monkeypatch,
+    capsys,
+):
+    from scrapepro.cli import main as cli
+
+    class FakeSettings:
+        def require_google_maps_api_key(self):
+            raise ValueError(
+                "GOOGLE_MAPS_API_KEY environment variable is not set."
+            )
+
+    monkeypatch.setattr(cli, "Settings", FakeSettings)
+
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "cafes",
+            "--location",
+            "Islamabad",
+        ],
+    )
+
+    cli.main()
+
+    captured = capsys.readouterr()
+
+    assert (
+        "Error: GOOGLE_MAPS_API_KEY environment variable is not set."
+        in captured.out
+    )

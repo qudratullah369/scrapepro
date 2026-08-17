@@ -147,12 +147,16 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "scrape":
-        settings = Settings()
-        task = build_scrape_task(args)
-        scraper = build_scraper(task.source, settings)
-        pipeline = build_pipeline()
-        engine = ScrapeEngine(scraper, pipeline=pipeline)
-        result = engine.run(task)
+        try:
+            settings = Settings()
+            task = build_scrape_task(args)
+            scraper = build_scraper(task.source, settings)
+            pipeline = build_pipeline()
+            engine = ScrapeEngine(scraper, pipeline=pipeline)
+            result = engine.run(task)
+        except ValueError as exc:
+            print(f"Error: {exc}")
+            return
 
         print(f"Records: {len(result.records)}")
 
