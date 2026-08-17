@@ -118,3 +118,73 @@ def test_scrape_endpoint_rejects_missing_source():
     )
 
     assert response.status_code == 422
+
+
+def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        app_module,
+        "build_scraper",
+        lambda source: object(),
+    )
+
+    monkeypatch.setattr(
+        app_module,
+        "build_pipeline",
+        lambda database: object(),
+    )
+
+    monkeypatch.setattr(
+        app_module,
+        "ScrapeEngine",
+        lambda scraper, pipeline: FakeEngine(
+            ScrapeResult(
+                records=[
+                    FakeRecord(
+                        name="Cafe Export",
+                        address="Islamabad",
+                    )
+                ]
+            )
+        ),
+    )
+
+    exported = {}
+
+    class FakeExporter:
+        def export(self, records, path):
+            exported["records"] = records
+            exported["path"] = path
+            return path
+
+    monkeypatch.setattr(
+        app_module,
+        "build_exporter",
+        lambda output_format: FakeExporter(),
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    response = client.post(
+        "/scrape",
+        json={
+            "source": "google_maps",
+            "query": "cafes",
+            "location": "Islamabad",
+            "output": "csv",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "completed"
+    assert data["count"] == 1
+    assert data["output"] == "csv"
+    assert data["export_path"] == "cafes_Islamabad.csv"
+
+    assert len(exported["records"]) == 1
+    assert exported["records"][0]["name"] if isinstance(
+        exported["records"][0], dict
+    ) else exported["records"][0].name == "Cafe Export"
+    assert str(exported["path"]) == "cafes_Islamabad.csv"

@@ -1,6 +1,6 @@
 """FastAPI application for ScrapePro."""
 
-from dataclasses import asdict
+from pathlib import Path
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -28,6 +28,46 @@ app = FastAPI(
 )
 
 job_store = JobStore()
+
+
+def build_exporter(output_format: str | None):
+    """Build an exporter for the requested output format."""
+    if output_format is None:
+        return None
+
+    if output_format == "csv":
+        from scrapepro.exporters.csv import CSVExporter
+        return CSVExporter()
+
+    if output_format == "json":
+        from scrapepro.exporters.json import JSONExporter
+        return JSONExporter()
+
+    if output_format == "excel":
+        from scrapepro.exporters.excel import ExcelExporter
+        return ExcelExporter()
+
+    raise ValueError(f"Unsupported output format: {output_format}")
+
+
+def build_export_path(
+    output_format: str,
+    query: str,
+    location: str | None,
+) -> Path:
+    """Build the default API export file path."""
+    extensions = {
+        "csv": ".csv",
+        "json": ".json",
+        "excel": ".xlsx",
+    }
+
+    if output_format not in extensions:
+        raise ValueError(f"Unsupported output format: {output_format}")
+
+    safe_location = location or "unknown"
+    filename = f"{query}_{safe_location}{extensions[output_format]}"
+    return Path(filename)
 
 
 class ScrapeRequest(BaseModel):
@@ -99,13 +139,26 @@ def create_scrape(request: ScrapeRequest) -> dict[str, object]:
     service = JobService(job_store, engine)
     job = service.create_and_run(task)
 
-    return {
+    response: dict[str, object] = {
         "job_id": job.job_id,
         "status": job.status,
         "count": job.count,
         "errors": job.errors,
         "records": job.records,
     }
+
+    if job.status == "completed" and task.output:
+        exporter = build_exporter(task.output)
+        output_path = build_export_path(
+            task.output,
+            task.query,
+            task.location,
+        )
+        exporter.export(job.records, output_path)
+        response["output"] = task.output
+        response["export_path"] = str(output_path)
+
+    return response
 
 
 @app.get("/jobs/{job_id}")
