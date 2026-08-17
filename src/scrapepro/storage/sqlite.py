@@ -4,9 +4,10 @@ import sqlite3
 from pathlib import Path
 
 from scrapepro.core.record import Record
+from scrapepro.storage.base import BaseStorage
 
 
-class SQLiteStorage:
+class SQLiteStorage(BaseStorage):
     """Store Record objects in a SQLite database."""
 
     def __init__(self, path: str | Path) -> None:
