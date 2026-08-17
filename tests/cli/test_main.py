@@ -375,3 +375,64 @@ def test_cli_main_exports_records_when_output_requested(
     assert fake_exporter.received_records == FakeResult.records
     assert fake_exporter.received_path == tmp_path / "cafes.csv"
     assert "Exported:" in captured.out
+
+def test_cli_main_runs_scrape_through_engine(monkeypatch, capsys):
+    from scrapepro.cli import main as cli
+    from scrapepro.core.record import Record
+
+    class FakeResult:
+        records = [
+            Record(
+                name="Engine Cafe",
+                address="Islamabad, Pakistan",
+                rating=4.8,
+            )
+        ]
+        errors = []
+
+    class FakeEngine:
+        def __init__(self):
+            self.received_task = None
+
+        def run(self, task):
+            self.received_task = task
+            return FakeResult()
+
+    fake_engine = FakeEngine()
+
+    monkeypatch.setattr(cli, "Settings", lambda: object())
+    monkeypatch.setattr(
+        cli,
+        "build_scraper",
+        lambda source, settings: object(),
+    )
+    monkeypatch.setattr(
+        cli,
+        "ScrapeEngine",
+        lambda scraper: fake_engine,
+    )
+
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "scrapepro",
+            "scrape",
+            "--source",
+            "google_maps",
+            "--query",
+            "cafes",
+            "--location",
+            "Islamabad",
+        ],
+    )
+
+    cli.main()
+
+    captured = capsys.readouterr()
+
+    assert fake_engine.received_task.source == "google_maps"
+    assert fake_engine.received_task.query == "cafes"
+    assert fake_engine.received_task.location == "Islamabad"
+    assert "Records: 1" in captured.out
+    assert "Engine Cafe" in captured.out

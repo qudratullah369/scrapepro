@@ -6,6 +6,7 @@ from pathlib import Path
 
 from scrapepro.config.settings import Settings
 from scrapepro.core.task import ScrapeTask
+from scrapepro.core.engine import ScrapeEngine
 from scrapepro.scrapers.google_maps import GoogleMapsScraper
 from scrapepro.version import __version__
 
@@ -131,7 +132,8 @@ def main() -> None:
         settings = Settings()
         task = build_scrape_task(args)
         scraper = build_scraper(task.source, settings)
-        result = scraper.scrape(task)
+        engine = ScrapeEngine(scraper)
+        result = engine.run(task)
 
         print(f"Records: {len(result.records)}")
 
