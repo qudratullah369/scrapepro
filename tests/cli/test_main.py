@@ -325,16 +325,20 @@ def test_cli_main_exports_records_when_output_requested(
         def scrape(self, task):
             return FakeResult()
 
-    class FakeExporter:
-        def __init__(self):
-            self.received_records = None
-            self.received_path = None
+    class FakeExportService:
+        def export(self, records, output_format, query, location):
+            assert len(records) == 1
+            assert records[0].name == "Cafe Export"
+            assert output_format == "csv"
+            assert query == "cafes"
+            assert location == "Islamabad"
 
-        def export(self, records, path):
-            self.received_records = records
-            self.received_path = path
-
-    fake_exporter = FakeExporter()
+            output_path = tmp_path / "cafes.csv"
+            output_path.write_text(
+                "name\\nCafe Export\\n",
+                encoding="utf-8",
+            )
+            return output_path
 
     monkeypatch.setattr(cli, "Settings", lambda: object())
     monkeypatch.setattr(
@@ -344,15 +348,8 @@ def test_cli_main_exports_records_when_output_requested(
     )
     monkeypatch.setattr(
         cli,
-        "build_exporter",
-        lambda output_format: fake_exporter,
-    )
-    monkeypatch.setattr(
-        cli,
-        "build_export_path",
-        lambda output_format, query, location: (
-            tmp_path / "cafes.csv"
-        ),
+        "ExportService",
+        lambda: FakeExportService(),
     )
     monkeypatch.setattr(
         cli.sys,
@@ -375,12 +372,10 @@ def test_cli_main_exports_records_when_output_requested(
 
     captured = capsys.readouterr()
 
-    assert len(fake_exporter.received_records) == 1
-    assert fake_exporter.received_records[0].name == "Cafe Export"
-    assert fake_exporter.received_records[0].city == "Islamabad"
-    assert fake_exporter.received_records[0].country == "Pakistan"
-    assert fake_exporter.received_path == tmp_path / "cafes.csv"
+    assert "Records: 1" in captured.out
+    assert "Cafe Export" in captured.out
     assert "Exported:" in captured.out
+    assert "cafes.csv" in captured.out
 
 def test_cli_main_runs_scrape_through_engine(monkeypatch, capsys):
     from scrapepro.cli import main as cli

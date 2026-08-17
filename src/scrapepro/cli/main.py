@@ -3,6 +3,7 @@
 import argparse
 import sys
 from pathlib import Path
+from scrapepro.exporters.service import ExportService
 from scrapepro.processors.storage import StorageProcessor
 from scrapepro.storage.sqlite import SQLiteStorage
 from scrapepro.config.settings import Settings
@@ -112,26 +113,10 @@ def build_pipeline(database: str | Path) -> Pipeline:
 
 
 def build_exporter(output_format: str | None):
-    """Build an exporter for the requested output format."""
-    if output_format == "csv":
-        from scrapepro.exporters.csv import CSVExporter
-
-        return CSVExporter()
-
-    if output_format == "json":
-        from scrapepro.exporters.json import JSONExporter
-
-        return JSONExporter()
-
-    if output_format == "excel":
-        from scrapepro.exporters.excel import ExcelExporter
-
-        return ExcelExporter()
-
+    """Build an exporter using the shared export service."""
     if output_format is None:
         return None
-
-    raise ValueError(f"Unsupported output format: {output_format}")
+    return ExportService._build_exporter(output_format)
 
 
 def build_export_path(
@@ -139,18 +124,12 @@ def build_export_path(
     query: str,
     location: str,
 ) -> Path:
-    """Build the default export file path."""
-    extensions = {
-        "csv": ".csv",
-        "json": ".json",
-        "excel": ".xlsx",
-    }
-
-    if output_format not in extensions:
-        raise ValueError(f"Unsupported output format: {output_format}")
-
-    filename = f"{query}_{location}{extensions[output_format]}"
-    return Path(filename)
+    """Build the default export path using the shared export service."""
+    return ExportService.build_export_path(
+        output_format,
+        query,
+        location,
+    )
 
 
 def main() -> None:
@@ -181,13 +160,13 @@ def main() -> None:
             )
 
         if task.output:
-            exporter = build_exporter(task.output)
-            output_path = build_export_path(
+            export_service = ExportService()
+            output_path = export_service.export(
+                result.records,
                 task.output,
                 task.query,
                 task.location,
             )
-            exporter.export(result.records, output_path)
             print(f"Exported: {output_path}")
 
         if result.errors:
