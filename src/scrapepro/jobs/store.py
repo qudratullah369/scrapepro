@@ -10,6 +10,15 @@ JOB_RUNNING = "running"
 JOB_COMPLETED = "completed"
 JOB_FAILED = "failed"
 
+VALID_JOB_STATUSES = frozenset(
+    {
+        JOB_QUEUED,
+        JOB_RUNNING,
+        JOB_COMPLETED,
+        JOB_FAILED,
+    }
+)
+
 
 @dataclass
 class Job:
@@ -55,6 +64,8 @@ class JobStore:
             return None
 
         if status is not None:
+            if status not in VALID_JOB_STATUSES:
+                raise ValueError(f"Invalid job status: {status}")
             job.status = status
 
         if count is not None:
