@@ -22,6 +22,7 @@ from scrapepro.jobs.service import JobService
 from scrapepro.exporters.service import ExportService
 from scrapepro.jobs.store import (
     JOB_COMPLETED,
+    JOB_NOT_FOUND,
     JobStore,
 )
 
@@ -132,7 +133,7 @@ def get_job(job_id: str) -> dict[str, object]:
 
     if job is None:
         return {
-            "status": "not_found",
+            "status": JOB_NOT_FOUND,
             "job_id": job_id,
         }
 

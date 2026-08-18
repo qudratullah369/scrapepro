@@ -9,6 +9,7 @@ JOB_QUEUED = "queued"
 JOB_RUNNING = "running"
 JOB_COMPLETED = "completed"
 JOB_FAILED = "failed"
+JOB_NOT_FOUND = "not_found"
 
 VALID_JOB_STATUSES = frozenset(
     {

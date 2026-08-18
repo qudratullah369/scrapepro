@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 import scrapepro.api.app as app_module
 from scrapepro.core.result import ScrapeResult
+from scrapepro.jobs.store import JOB_NOT_FOUND
 
 
 client = TestClient(app_module.app)
@@ -104,7 +105,7 @@ def test_get_missing_job():
 
     assert response.status_code == 200
     assert response.json() == {
-        "status": "not_found",
+        "status": JOB_NOT_FOUND,
         "job_id": "missing-job",
     }
 
