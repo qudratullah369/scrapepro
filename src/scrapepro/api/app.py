@@ -3,7 +3,6 @@
 from pathlib import Path
 
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
 
 from scrapepro.config.settings import Settings
 from scrapepro.core.engine import ScrapeEngine
@@ -25,6 +24,7 @@ from scrapepro.jobs.store import (
     JOB_NOT_FOUND,
     JobStore,
 )
+from scrapepro.api.schemas import ScrapeRequest
 
 
 app = FastAPI(
@@ -33,16 +33,6 @@ app = FastAPI(
 )
 
 job_store = JobStore()
-
-
-class ScrapeRequest(BaseModel):
-    """Request body for a scraping task."""
-
-    source: str = Field(..., pattern="^google_maps$")
-    query: str = Field(..., min_length=1)
-    location: str | None = None
-    output: str | None = Field(None, pattern="^(csv|excel|json)$")
-    database: str | None = None
 
 
 def build_scraper(source: str) -> GoogleMapsScraper:
