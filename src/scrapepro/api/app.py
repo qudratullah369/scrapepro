@@ -72,7 +72,7 @@ def health() -> dict[str, str]:
     }
 
 
-@app.post("/scrape")
+@app.post("/scrape", response_model=ScrapeResponse)
 def create_scrape(request: ScrapeRequest) -> ScrapeResponse:
     """Create and execute a scraping job."""
     task = ScrapeTask(
