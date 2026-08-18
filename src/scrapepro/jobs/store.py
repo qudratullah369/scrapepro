@@ -5,12 +5,18 @@ from typing import Any
 from uuid import uuid4
 
 
+JOB_QUEUED = "queued"
+JOB_RUNNING = "running"
+JOB_COMPLETED = "completed"
+JOB_FAILED = "failed"
+
+
 @dataclass
 class Job:
     """Represent a scraping job."""
 
     job_id: str
-    status: str = "queued"
+    status: str = JOB_QUEUED
     count: int = 0
     errors: list[str] = field(default_factory=list)
     records: list[Any] = field(default_factory=list)
