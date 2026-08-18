@@ -24,7 +24,12 @@ from scrapepro.jobs.store import (
     JOB_NOT_FOUND,
     JobStore,
 )
-from scrapepro.api.schemas import ScrapeRequest, ScrapeResponse
+from scrapepro.api.schemas import (
+    JobNotFoundResponse,
+    JobResponse,
+    ScrapeRequest,
+    ScrapeResponse,
+)
 
 
 app = FastAPI(
@@ -116,23 +121,26 @@ def create_scrape(request: ScrapeRequest) -> ScrapeResponse:
     return ScrapeResponse(**response)
 
 
-@app.get("/jobs/{job_id}")
-def get_job(job_id: str) -> dict[str, object]:
+@app.get(
+    "/jobs/{job_id}",
+    response_model=JobResponse | JobNotFoundResponse,
+)
+def get_job(job_id: str) -> JobResponse | JobNotFoundResponse:
     """Return the current state of a scraping job."""
     job = job_store.get(job_id)
 
     if job is None:
-        return {
-            "status": JOB_NOT_FOUND,
-            "job_id": job_id,
-        }
+        return JobNotFoundResponse(
+            status=JOB_NOT_FOUND,
+            job_id=job_id,
+        )
 
-    return {
-        "job_id": job.job_id,
-        "status": job.status,
-        "count": job.count,
-        "errors": job.errors,
-        "records": job.records,
-        "output": None,
-        "export_path": None,
-    }
+    return JobResponse(
+        job_id=job.job_id,
+        status=job.status,
+        count=job.count,
+        errors=job.errors,
+        records=job.records,
+        output=None,
+        export_path=None,
+    )
