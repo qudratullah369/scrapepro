@@ -11,3 +11,15 @@ class ScrapeRequest(BaseModel):
     location: str | None = None
     output: str | None = Field(None, pattern="^(csv|excel|json)$")
     database: str | None = None
+
+
+class ScrapeResponse(BaseModel):
+    """Response returned after executing a scraping job."""
+
+    job_id: str
+    status: str
+    count: int
+    errors: list[str]
+    records: list[dict]
+    output: str | None = None
+    export_path: str | None = None

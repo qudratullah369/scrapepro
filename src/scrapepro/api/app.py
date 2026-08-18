@@ -24,7 +24,7 @@ from scrapepro.jobs.store import (
     JOB_NOT_FOUND,
     JobStore,
 )
-from scrapepro.api.schemas import ScrapeRequest
+from scrapepro.api.schemas import ScrapeRequest, ScrapeResponse
 
 
 app = FastAPI(
@@ -73,7 +73,7 @@ def health() -> dict[str, str]:
 
 
 @app.post("/scrape")
-def create_scrape(request: ScrapeRequest) -> dict[str, object]:
+def create_scrape(request: ScrapeRequest) -> ScrapeResponse:
     """Create and execute a scraping job."""
     task = ScrapeTask(
         source=request.source,
@@ -94,7 +94,7 @@ def create_scrape(request: ScrapeRequest) -> dict[str, object]:
     service = JobService(job_store, engine)
     job = service.create_and_run(task)
 
-    response: dict[str, object] = {
+    response = {
         "job_id": job.job_id,
         "status": job.status,
         "count": job.count,
@@ -113,7 +113,7 @@ def create_scrape(request: ScrapeRequest) -> dict[str, object]:
         response["output"] = task.output
         response["export_path"] = str(output_path)
 
-    return response
+    return ScrapeResponse(**response)
 
 
 @app.get("/jobs/{job_id}")
@@ -133,4 +133,6 @@ def get_job(job_id: str) -> dict[str, object]:
         "count": job.count,
         "errors": job.errors,
         "records": job.records,
+        "output": None,
+        "export_path": None,
     }
