@@ -3,7 +3,11 @@ from dataclasses import dataclass
 from scrapepro.core.result import ScrapeResult
 from scrapepro.core.task import ScrapeTask
 from scrapepro.jobs.service import JobService
-from scrapepro.jobs.store import JobStore
+from scrapepro.jobs.store import (
+    JOB_COMPLETED,
+    JOB_FAILED,
+    JobStore,
+)
 
 
 @dataclass
@@ -49,7 +53,7 @@ def test_create_and_run_completed_job():
 
     job = service.create_and_run(make_task())
 
-    assert job.status == "completed"
+    assert job.status == JOB_COMPLETED
     assert job.count == 1
     assert job.errors == []
     assert job.records == [
@@ -74,7 +78,7 @@ def test_create_and_run_failed_job():
 
     job = service.create_and_run(make_task())
 
-    assert job.status == "failed"
+    assert job.status == JOB_FAILED
     assert job.count == 0
     assert job.errors == ["Google Maps API error"]
     assert job.records == []
@@ -91,6 +95,6 @@ def test_create_and_run_handles_exception():
 
     job = service.create_and_run(make_task())
 
-    assert job.status == "failed"
+    assert job.status == JOB_FAILED
     assert job.count == 0
     assert job.errors == ["Unexpected scraper failure"]

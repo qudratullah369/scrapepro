@@ -5,7 +5,13 @@ from typing import Any
 
 from scrapepro.core.engine import ScrapeEngine
 from scrapepro.core.task import ScrapeTask
-from scrapepro.jobs.store import Job, JobStore
+from scrapepro.jobs.store import (
+    JOB_COMPLETED,
+    JOB_FAILED,
+    JOB_RUNNING,
+    Job,
+    JobStore,
+)
 
 
 class JobService:
@@ -19,7 +25,7 @@ class JobService:
     def create_and_run(self, task: ScrapeTask) -> Job:
         """Create a job, execute the task, and update the job result."""
         job = self.store.create()
-        self.store.update(job.job_id, status="running")
+        self.store.update(job.job_id, status=JOB_RUNNING)
 
         try:
             result = self.engine.run(task)
@@ -28,7 +34,7 @@ class JobService:
                 asdict(record) for record in result.records
             ]
 
-            status = "completed" if result.success else "failed"
+            status = JOB_COMPLETED if result.success else JOB_FAILED
 
             self.store.update(
                 job.job_id,
@@ -40,7 +46,7 @@ class JobService:
         except Exception as exc:
             self.store.update(
                 job.job_id,
-                status="failed",
+                status=JOB_FAILED,
                 errors=[str(exc)],
             )
 
