@@ -5,7 +5,8 @@ from fastapi.testclient import TestClient
 
 import scrapepro.api.app as app_module
 from scrapepro.core.result import ScrapeResult
-from scrapepro.jobs.store import JOB_NOT_FOUND
+from scrapepro.jobs.service import JobService
+from scrapepro.jobs.store import JOB_COMPLETED, JOB_NOT_FOUND, Job
 
 
 client = TestClient(app_module.app)
@@ -39,31 +40,50 @@ class FakeEngine:
         return self.result
 
 
+class FakeJobService:
+    def __init__(self, result, job_store):
+        self.result = result
+        self.job_store = job_store
+
+    def create_and_run(self, task):
+        result = self.result.run(task)
+
+        job = self.job_store.create()
+
+        self.job_store.update(
+            job.job_id,
+            status=JOB_COMPLETED,
+            count=result.count,
+            errors=[str(error) for error in result.errors],
+            records=[
+                {
+                    "name": record.name,
+                    "address": record.address,
+                    "source": record.source,
+                }
+                for record in result.records
+            ],
+        )
+
+        return self.job_store.get(job.job_id)
+
+
 def test_scrape_endpoint_creates_job(monkeypatch):
     monkeypatch.setattr(
         app_module,
-        "build_scraper",
-        lambda source: object(),
-    )
-
-    monkeypatch.setattr(
-        app_module,
-        "build_pipeline",
-        lambda database: object(),
-    )
-
-    monkeypatch.setattr(
-        app_module,
-        "ScrapeEngine",
-        lambda scraper, pipeline: FakeEngine(
-            ScrapeResult(
-                records=[
-                    FakeRecord(
-                        name="Cafe A",
-                        address="Main Street, Islamabad, Pakistan",
-                    )
-                ]
-            )
+        "build_job_service",
+        lambda source, database, job_store: FakeJobService(
+            FakeEngine(
+                ScrapeResult(
+                    records=[
+                        FakeRecord(
+                            name="Cafe A",
+                            address="Main Street, Islamabad, Pakistan",
+                        )
+                    ]
+                )
+            ),
+            job_store,
         ),
     )
 
@@ -125,28 +145,19 @@ def test_scrape_endpoint_rejects_missing_source():
 def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
     monkeypatch.setattr(
         app_module,
-        "build_scraper",
-        lambda source: object(),
-    )
-
-    monkeypatch.setattr(
-        app_module,
-        "build_pipeline",
-        lambda database: object(),
-    )
-
-    monkeypatch.setattr(
-        app_module,
-        "ScrapeEngine",
-        lambda scraper, pipeline: FakeEngine(
-            ScrapeResult(
-                records=[
-                    FakeRecord(
-                        name="Cafe Export",
-                        address="Islamabad",
-                    )
-                ]
-            )
+        "build_job_service",
+        lambda source, database, job_store: FakeJobService(
+            FakeEngine(
+                ScrapeResult(
+                    records=[
+                        FakeRecord(
+                            name="Cafe Export",
+                            address="Islamabad",
+                        )
+                    ]
+                )
+            ),
+            job_store,
         ),
     )
 
