@@ -20,7 +20,10 @@ from scrapepro.scrapers.google_maps import GoogleMapsScraper
 from scrapepro.storage.sqlite import SQLiteStorage
 from scrapepro.jobs.service import JobService
 from scrapepro.exporters.service import ExportService
-from scrapepro.jobs.store import JobStore
+from scrapepro.jobs.store import (
+    JOB_COMPLETED,
+    JobStore,
+)
 
 
 app = FastAPI(
@@ -108,7 +111,7 @@ def create_scrape(request: ScrapeRequest) -> dict[str, object]:
         "records": job.records,
     }
 
-    if job.status == "completed" and task.output:
+    if job.status == JOB_COMPLETED and task.output:
         export_service = ExportService()
         output_path = export_service.export(
             job.records,
