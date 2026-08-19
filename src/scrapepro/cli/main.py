@@ -17,6 +17,7 @@ from scrapepro.processors.location_enricher import LocationEnrichmentProvider
 from scrapepro.processors.normalizer import Normalizer
 from scrapepro.processors.validator import Validator
 from scrapepro.scrapers.google_maps import GoogleMapsScraper
+from scrapepro.scrapers.website import WebsiteScraper
 from scrapepro.version import __version__
 
 
@@ -92,6 +93,9 @@ def build_scraper(source: str, settings: Settings):
         return GoogleMapsScraper(
             api_key=settings.require_google_maps_api_key()
         )
+
+    if source == "website":
+        return WebsiteScraper()
 
     raise ValueError(f"Unsupported scraping source: {source}")
 

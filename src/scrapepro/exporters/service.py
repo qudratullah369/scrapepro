@@ -1,6 +1,7 @@
 """Shared export service for ScrapePro."""
 
 from pathlib import Path
+import re
 
 from scrapepro.core.record import Record
 
@@ -65,8 +66,27 @@ class ExportService:
             )
 
         safe_location = location or "unknown"
+
+        safe_query = re.sub(
+            r"[^A-Za-z0-9._-]+",
+            "_",
+            query.strip(),
+        ).strip("._-")
+
+        if not safe_query:
+            safe_query = "scrape"
+
+        safe_location = re.sub(
+            r"[^A-Za-z0-9._-]+",
+            "_",
+            safe_location.strip(),
+        ).strip("._-")
+
+        if not safe_location:
+            safe_location = "unknown"
+
         filename = (
-            f"{query}_{safe_location}"
+            f"{safe_query}_{safe_location}"
             f"{extensions[output_format]}"
         )
 
