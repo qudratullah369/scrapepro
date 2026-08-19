@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass, field
 
+from scrapepro.requests.fields import FieldRequirement
+
 
 @dataclass
 class DataSpecification:
@@ -9,7 +11,7 @@ class DataSpecification:
 
     category: str
     location: str | None = None
-    fields: list[str] = field(default_factory=list)
+    fields: list[FieldRequirement] = field(default_factory=list)
     limit: int | None = None
     source: str | None = None
     output: str | None = None
@@ -30,3 +32,10 @@ class DataSpecification:
             raise ValueError(
                 "Output must be csv, json, or excel."
             )
+
+        self.fields = [
+            field
+            if isinstance(field, FieldRequirement)
+            else FieldRequirement(field)
+            for field in self.fields
+        ]
