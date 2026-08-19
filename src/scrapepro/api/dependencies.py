@@ -12,11 +12,13 @@ from scrapepro.processors.location_enricher import LocationEnrichmentProvider
 from scrapepro.processors.normalizer import Normalizer
 from scrapepro.processors.storage import StorageProcessor
 from scrapepro.processors.validator import Validator
+from scrapepro.scrapers.ecommerce import EcommerceScraper
 from scrapepro.scrapers.google_maps import GoogleMapsScraper
+from scrapepro.scrapers.website import WebsiteScraper
 from scrapepro.storage.sqlite import SQLiteStorage
 
 
-def build_scraper(source: str) -> GoogleMapsScraper:
+def build_scraper(source: str):
     """Build a scraper for the requested source."""
     settings = Settings()
 
@@ -24,6 +26,12 @@ def build_scraper(source: str) -> GoogleMapsScraper:
         return GoogleMapsScraper(
             api_key=settings.require_google_maps_api_key()
         )
+
+    if source == "website":
+        return WebsiteScraper()
+
+    if source == "ecommerce":
+        return EcommerceScraper()
 
     raise ValueError(f"Unsupported scraping source: {source}")
 
