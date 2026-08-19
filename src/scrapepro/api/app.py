@@ -15,7 +15,10 @@ from scrapepro.api.dependencies import (
     build_job_service,
 )
 
-from scrapepro.api.request_dependencies import build_request_service
+from scrapepro.api.request_dependencies import (
+    build_request_export_service,
+    build_request_service,
+)
 from scrapepro.api.request_schemas import (
     DataRequestBody,
     DataRequestResponse,
@@ -116,20 +119,16 @@ def create_data_request(
     request: DataRequestBody,
 ) -> DataRequestResponse:
     """Submit a client data request."""
-    from scrapepro.api.request_dependencies import build_request_service
-    from scrapepro.api.dependencies import build_job_service
+    from scrapepro.requests.fields import FieldRequirement
+    from scrapepro.requests.specification import DataSpecification
 
-    # Build the same engine used by the existing API job system.
     job_service = build_job_service(
         source=request.source or "google_maps",
         database="scrapepro.db",
         job_store=job_store,
     )
 
-    service = build_request_service(job_service.engine)
-
-    from scrapepro.requests.fields import FieldRequirement
-    from scrapepro.requests.specification import DataSpecification
+    service = build_request_export_service(job_service.engine)
 
     specification = DataSpecification(
         category=request.category,
@@ -143,7 +142,20 @@ def create_data_request(
         output=request.output,
     )
 
-    result = service.submit(specification)
+    result, output_path = service.submit(specification)
+
+    return DataRequestResponse(
+        count=result.count,
+        errors=[str(error) for error in result.errors],
+        records=[
+            record.__dict__
+            for record in result.records
+        ],
+        output=request.output,
+        export_path=str(output_path) if output_path else None,
+    )
+
+    result, output_path = service.submit(specification)
 
     return DataRequestResponse(
         count=result.count,

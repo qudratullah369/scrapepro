@@ -305,3 +305,61 @@ def test_scrape_endpoint_accepts_ecommerce_source(monkeypatch):
     )
 
     assert response.status_code == 200
+
+
+def test_data_request_endpoint_uses_request_export_service(monkeypatch):
+    """Verify /data-request executes the request and optional export."""
+    from pathlib import Path
+
+    from scrapepro.core.result import ScrapeResult
+    from scrapepro.requests.export_service import RequestExportService
+
+    class FakeRequestExportService:
+        def __init__(self):
+            self.specification = None
+
+        def submit(self, specification):
+            self.specification = specification
+            return (
+                ScrapeResult(records=[]),
+                Path("Restaurants_Islamabad.csv"),
+            )
+
+    fake_service = FakeRequestExportService()
+
+    class FakeJobService:
+        engine = object()
+
+    monkeypatch.setattr(
+        app_module,
+        "build_job_service",
+        lambda source, database, job_store: FakeJobService(),
+    )
+
+    monkeypatch.setattr(
+        app_module,
+        "build_request_export_service",
+        lambda engine: fake_service,
+    )
+
+    response = client.post(
+        "/data-request",
+        json={
+            "category": "Restaurants",
+            "location": "Islamabad",
+            "fields": ["name", "phone", "website"],
+            "limit": 100,
+            "source": "google_maps",
+            "output": "csv",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["count"] == 0
+    assert data["errors"] == []
+    assert data["output"] == "csv"
+    assert fake_service.specification.category == "Restaurants"
+    assert fake_service.specification.location == "Islamabad"
+    assert fake_service.specification.output == "csv"
