@@ -24,8 +24,9 @@ class Validator(BaseProcessor):
         if not record.name or not record.name.strip():
             return False
 
-        # Website records are valid when they have a name and website URL.
-        if record.source == "website":
+        # Website and e-commerce records are valid when they have
+        # a name and website URL.
+        if record.source in {"website", "ecommerce"}:
             return bool(record.website and record.website.strip())
 
         # Business records must have either phone or address.

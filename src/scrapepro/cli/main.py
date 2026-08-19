@@ -18,6 +18,7 @@ from scrapepro.processors.normalizer import Normalizer
 from scrapepro.processors.validator import Validator
 from scrapepro.scrapers.google_maps import GoogleMapsScraper
 from scrapepro.scrapers.website import WebsiteScraper
+from scrapepro.scrapers.ecommerce import EcommerceScraper
 from scrapepro.version import __version__
 
 
@@ -96,6 +97,9 @@ def build_scraper(source: str, settings: Settings):
 
     if source == "website":
         return WebsiteScraper()
+
+    if source == "ecommerce":
+        return EcommerceScraper()
 
     raise ValueError(f"Unsupported scraping source: {source}")
 
