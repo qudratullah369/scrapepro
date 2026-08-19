@@ -58,3 +58,6 @@ data/exports/*
 
 # ScrapePro local SQLite database
 scrapepro.db
+
+# ScrapePro generated root-level CSV exports
+*_Islamabad.csv
