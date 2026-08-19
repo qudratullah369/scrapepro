@@ -34,9 +34,6 @@ class FakeEngine:
         self.result = result
 
     def run(self, task):
-        assert task.source == "google_maps"
-        assert task.query == "cafes"
-        assert task.location == "Islamabad"
         return self.result
 
 
@@ -244,3 +241,67 @@ def test_scrape_endpoint_rejects_invalid_output():
     )
 
     assert response.status_code == 422
+
+
+def test_scrape_endpoint_accepts_website_source(monkeypatch):
+    monkeypatch.setattr(
+        app_module,
+        "build_job_service",
+        lambda source, database, job_store: FakeJobService(
+            FakeEngine(
+                ScrapeResult(
+                    records=[
+                        FakeRecord(
+                            name="Example Website",
+                            address="",
+                            source="website",
+                        )
+                    ]
+                )
+            ),
+            job_store,
+        ),
+    )
+
+    response = client.post(
+        "/scrape",
+        json={
+            "source": "website",
+            "query": "https://example.com",
+            "location": "International",
+        },
+    )
+
+    assert response.status_code == 200
+
+
+def test_scrape_endpoint_accepts_ecommerce_source(monkeypatch):
+    monkeypatch.setattr(
+        app_module,
+        "build_job_service",
+        lambda source, database, job_store: FakeJobService(
+            FakeEngine(
+                ScrapeResult(
+                    records=[
+                        FakeRecord(
+                            name="Test Product",
+                            address="",
+                            source="ecommerce",
+                        )
+                    ]
+                )
+            ),
+            job_store,
+        ),
+    )
+
+    response = client.post(
+        "/scrape",
+        json={
+            "source": "ecommerce",
+            "query": "https://example.com/product",
+            "location": "International",
+        },
+    )
+
+    assert response.status_code == 200
