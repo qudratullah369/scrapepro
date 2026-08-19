@@ -24,7 +24,11 @@ class Validator(BaseProcessor):
         if not record.name or not record.name.strip():
             return False
 
-        # Must have either phone or address
+        # Website records are valid when they have a name and website URL.
+        if record.source == "website":
+            return bool(record.website and record.website.strip())
+
+        # Business records must have either phone or address.
         has_phone = record.phone and record.phone.strip()
         has_address = record.address and record.address.strip()
         if not (has_phone or has_address):
