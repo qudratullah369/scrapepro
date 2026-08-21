@@ -1,6 +1,7 @@
 """Generic public website scraper for ScrapePro."""
 
 from html.parser import HTMLParser
+import re
 
 import requests
 
@@ -17,10 +18,18 @@ class _PageParser(HTMLParser):
         super().__init__()
         self.title_parts: list[str] = []
         self.h1_parts: list[str] = []
+        self.email_candidates: list[str] = []
         self._in_title = False
         self._in_h1 = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        for attr, value in attrs:
+            if attr.lower() == "href" and value:
+                if value.lower().startswith("mailto:"):
+                    email = value[7:].split("?", 1)[0].strip()
+                    if email:
+                        self.email_candidates.append(email)
+
         if tag.lower() == "title":
             self._in_title = True
         elif tag.lower() == "h1":
@@ -44,10 +53,23 @@ class _PageParser(HTMLParser):
         if self._in_h1:
             self.h1_parts.append(text)
 
+        self.email_candidates.extend(
+            re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", data)
+        )
+
     @property
     def title(self) -> str:
         """Return the extracted page title."""
         return " ".join(self.title_parts).strip()
+
+    @property
+    def email(self) -> str | None:
+        """Return the first unique extracted email address."""
+        for email in self.email_candidates:
+            normalized = email.strip().lower()
+            if normalized:
+                return normalized
+        return None
 
     @property
     def h1(self) -> str:
@@ -98,6 +120,7 @@ class WebsiteScraper(BaseScraper):
 
         record = Record(
             name=name,
+            email=parser.email,
             website=url,
             source="website",
         )
