@@ -27,3 +27,4 @@ class DataRequestResponse(BaseModel):
     errors: list[str]
     records: list[dict]
     output: str | None = None
+    export_path: str | None = None

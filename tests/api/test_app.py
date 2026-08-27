@@ -363,3 +363,4 @@ def test_data_request_endpoint_uses_request_export_service(monkeypatch):
     assert fake_service.specification.category == "Restaurants"
     assert fake_service.specification.location == "Islamabad"
     assert fake_service.specification.output == "csv"
+    assert data["export_path"] == "Restaurants_Islamabad.csv"
