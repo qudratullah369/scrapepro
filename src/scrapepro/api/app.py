@@ -154,15 +154,3 @@ def create_data_request(
         output=request.output,
         export_path=str(output_path) if output_path else None,
     )
-
-    result, output_path = service.submit(specification)
-
-    return DataRequestResponse(
-        count=result.count,
-        errors=[str(error) for error in result.errors],
-        records=[
-            record.__dict__
-            for record in result.records
-        ],
-        output=request.output,
-    )
