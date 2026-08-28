@@ -5,8 +5,7 @@ from fastapi.testclient import TestClient
 
 import scrapepro.api.app as app_module
 from scrapepro.core.result import ScrapeResult
-from scrapepro.jobs.service import JobService
-from scrapepro.jobs.store import JOB_COMPLETED, JOB_NOT_FOUND, Job
+from scrapepro.jobs.store import JOB_COMPLETED, JOB_NOT_FOUND
 
 
 client = TestClient(app_module.app)
@@ -166,8 +165,10 @@ def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
             exported["output_format"] = output_format
             exported["query"] = query
             exported["location"] = location
+
             output_path = tmp_path / "cafes_Islamabad.csv"
             exported["path"] = output_path
+
             return output_path
 
     monkeypatch.setattr(
@@ -198,10 +199,16 @@ def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
     assert Path(data["export_path"]).name == "cafes_Islamabad.csv"
 
     assert len(exported["records"]) == 1
-    assert exported["records"][0]["name"] if isinstance(
-        exported["records"][0], dict
-    ) else exported["records"][0].name == "Cafe Export"
+
+    record = exported["records"][0]
+
+    if isinstance(record, dict):
+        assert record["name"] == "Cafe Export"
+    else:
+        assert record.name == "Cafe Export"
+
     assert Path(exported["path"]).name == "cafes_Islamabad.csv"
+
 
 def test_scrape_endpoint_rejects_unsupported_source():
     response = client.post(
@@ -309,10 +316,7 @@ def test_scrape_endpoint_accepts_ecommerce_source(monkeypatch):
 
 def test_data_request_endpoint_uses_request_export_service(monkeypatch):
     """Verify /data-request executes the request and optional export."""
-    from pathlib import Path
-
     from scrapepro.core.result import ScrapeResult
-    from scrapepro.requests.export_service import RequestExportService
 
     class FakeRequestExportService:
         def __init__(self):
@@ -320,6 +324,7 @@ def test_data_request_endpoint_uses_request_export_service(monkeypatch):
 
         def submit(self, specification):
             self.specification = specification
+
             return (
                 ScrapeResult(records=[]),
                 Path("Restaurants_Islamabad.csv"),
@@ -355,12 +360,63 @@ def test_data_request_endpoint_uses_request_export_service(monkeypatch):
     )
 
     assert response.status_code == 200
+
     data = response.json()
 
     assert data["count"] == 0
     assert data["errors"] == []
     assert data["output"] == "csv"
+    assert data["export_path"] == "Restaurants_Islamabad.csv"
+
     assert fake_service.specification.category == "Restaurants"
     assert fake_service.specification.location == "Islamabad"
     assert fake_service.specification.output == "csv"
-    assert data["export_path"] == "Restaurants_Islamabad.csv"
+
+
+def test_data_request_endpoint_without_output(monkeypatch):
+    """Verify /data-request works without optional export."""
+    from scrapepro.core.result import ScrapeResult
+
+    class FakeRequestExportService:
+        def submit(self, specification):
+            return (
+                ScrapeResult(records=[]),
+                None,
+            )
+
+    class FakeJobService:
+        engine = object()
+
+    fake_service = FakeRequestExportService()
+
+    monkeypatch.setattr(
+        app_module,
+        "build_job_service",
+        lambda source, database, job_store: FakeJobService(),
+    )
+
+    monkeypatch.setattr(
+        app_module,
+        "build_request_export_service",
+        lambda engine: fake_service,
+    )
+
+    response = client.post(
+        "/data-request",
+        json={
+            "category": "Restaurants",
+            "location": "Islamabad",
+            "fields": ["name", "phone"],
+            "limit": 10,
+            "source": "google_maps",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["count"] == 0
+    assert data["errors"] == []
+    assert data["output"] is None
+    assert data["export_path"] is None
