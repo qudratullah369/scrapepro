@@ -69,3 +69,19 @@ def test_task_builder_rejects_invalid_source():
         assert str(error) == "Unsupported scraping source: unknown"
     else:
         raise AssertionError("Expected ValueError")
+
+
+def test_task_builder_passes_fields_and_limit():
+    specification = DataSpecification(
+        category="Restaurants",
+        location="Islamabad",
+        fields=["name", "phone", "website"],
+        limit=100,
+        source="google_maps",
+        output="csv",
+    )
+
+    task = TaskBuilder().build(specification)
+
+    assert task.fields == ["name", "phone", "website"]
+    assert task.limit == 100

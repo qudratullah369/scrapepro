@@ -26,4 +26,6 @@ class TaskBuilder:
             query=specification.category,
             location=specification.location,
             output=specification.output,
+            fields=[field.name for field in specification.fields],
+            limit=specification.limit,
         )
