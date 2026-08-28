@@ -70,3 +70,34 @@ def test_full_processing_pipeline():
     assert record.city == "Islamabad"
     assert record.country == "Pakistan"
     assert record.place_id == "p1"
+def test_scrape_engine_applies_task_limit():
+    class LimitedScraper(BaseScraper):
+        def scrape(self, task: ScrapeTask) -> ScrapeResult:
+            return ScrapeResult(
+                records=[
+                    Record(name="Cafe A", address="Address A"),
+                    Record(name="Cafe B", address="Address B"),
+                    Record(name="Cafe C", address="Address C"),
+                ]
+            )
+
+    engine = ScrapeEngine(
+        scraper=LimitedScraper(),
+        pipeline=Pipeline(),
+    )
+
+    task = ScrapeTask(
+        source="test",
+        query="cafes",
+        location="Islamabad",
+        limit=2,
+    )
+
+    result = engine.run(task)
+
+    assert result.success is True
+    assert result.count == 2
+    assert [record.name for record in result.records] == [
+        "Cafe A",
+        "Cafe B",
+    ]

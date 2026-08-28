@@ -28,6 +28,9 @@ class ScrapeEngine:
 
         records = self.pipeline.run(result.records)
 
+        if task.limit is not None:
+            records = records[:task.limit]
+
         return ScrapeResult(
             records=records,
             errors=result.errors,
