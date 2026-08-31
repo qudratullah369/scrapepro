@@ -367,13 +367,13 @@ def test_data_request_endpoint_uses_request_export_service(monkeypatch):
     assert data["errors"] == []
     assert data["output"] == "csv"
     assert data["export_path"] == "Restaurants_Islamabad.csv"
-
     assert fake_service.specification.category == "Restaurants"
     assert fake_service.specification.location == "Islamabad"
     assert fake_service.specification.output == "csv"
 
 
 def test_data_request_endpoint_without_output(monkeypatch):
+
     """Verify /data-request works without optional export."""
     from scrapepro.core.result import ScrapeResult
 
