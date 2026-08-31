@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 
 import scrapepro.api.app as app_module
 from scrapepro.core.result import ScrapeResult
-from scrapepro.jobs.store import JOB_COMPLETED, JOB_NOT_FOUND
 
 
 client = TestClient(app_module.app)
@@ -36,51 +35,22 @@ class FakeEngine:
         return self.result
 
 
-class FakeJobService:
-    def __init__(self, result, job_store):
-        self.result = result
-        self.job_store = job_store
-
-    def create_and_run(self, task):
-        result = self.result.run(task)
-
-        job = self.job_store.create()
-
-        self.job_store.update(
-            job.job_id,
-            status=JOB_COMPLETED,
-            count=result.count,
-            errors=[str(error) for error in result.errors],
+def test_scrape_endpoint_runs_engine(monkeypatch):
+    fake_engine = FakeEngine(
+        ScrapeResult(
             records=[
-                {
-                    "name": record.name,
-                    "address": record.address,
-                    "source": record.source,
-                }
-                for record in result.records
-            ],
+                FakeRecord(
+                    name="Cafe A",
+                    address="Main Street, Islamabad, Pakistan",
+                )
+            ]
         )
+    )
 
-        return self.job_store.get(job.job_id)
-
-
-def test_scrape_endpoint_creates_job(monkeypatch):
     monkeypatch.setattr(
         app_module,
-        "build_job_service",
-        lambda source, database, job_store: FakeJobService(
-            FakeEngine(
-                ScrapeResult(
-                    records=[
-                        FakeRecord(
-                            name="Cafe A",
-                            address="Main Street, Islamabad, Pakistan",
-                        )
-                    ]
-                )
-            ),
-            job_store,
-        ),
+        "build_engine",
+        lambda source, database: fake_engine,
     )
 
     response = client.post(
@@ -96,7 +66,7 @@ def test_scrape_endpoint_creates_job(monkeypatch):
 
     data = response.json()
 
-    assert data["job_id"]
+    assert "job_id" not in data
     assert data["status"] == "completed"
     assert data["count"] == 1
     assert data["errors"] == []
@@ -108,22 +78,11 @@ def test_scrape_endpoint_creates_job(monkeypatch):
         }
     ]
 
-    job_id = data["job_id"]
 
-    job_response = client.get(f"/jobs/{job_id}")
+def test_jobs_endpoint_is_removed():
+    response = client.get("/jobs/test-job")
 
-    assert job_response.status_code == 200
-    assert job_response.json() == data
-
-
-def test_get_missing_job():
-    response = client.get("/jobs/missing-job")
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "status": JOB_NOT_FOUND,
-        "job_id": "missing-job",
-    }
+    assert response.status_code == 404
 
 
 def test_scrape_endpoint_rejects_missing_source():
@@ -139,22 +98,21 @@ def test_scrape_endpoint_rejects_missing_source():
 
 
 def test_scrape_endpoint_exports_csv(monkeypatch, tmp_path):
+    fake_engine = FakeEngine(
+        ScrapeResult(
+            records=[
+                FakeRecord(
+                    name="Cafe Export",
+                    address="Islamabad",
+                )
+            ]
+        )
+    )
+
     monkeypatch.setattr(
         app_module,
-        "build_job_service",
-        lambda source, database, job_store: FakeJobService(
-            FakeEngine(
-                ScrapeResult(
-                    records=[
-                        FakeRecord(
-                            name="Cafe Export",
-                            address="Islamabad",
-                        )
-                    ]
-                )
-            ),
-            job_store,
-        ),
+        "build_engine",
+        lambda source, database: fake_engine,
     )
 
     exported = {}
@@ -251,23 +209,22 @@ def test_scrape_endpoint_rejects_invalid_output():
 
 
 def test_scrape_endpoint_accepts_website_source(monkeypatch):
+    fake_engine = FakeEngine(
+        ScrapeResult(
+            records=[
+                FakeRecord(
+                    name="Example Website",
+                    address="",
+                    source="website",
+                )
+            ]
+        )
+    )
+
     monkeypatch.setattr(
         app_module,
-        "build_job_service",
-        lambda source, database, job_store: FakeJobService(
-            FakeEngine(
-                ScrapeResult(
-                    records=[
-                        FakeRecord(
-                            name="Example Website",
-                            address="",
-                            source="website",
-                        )
-                    ]
-                )
-            ),
-            job_store,
-        ),
+        "build_engine",
+        lambda source, database: fake_engine,
     )
 
     response = client.post(
@@ -283,23 +240,22 @@ def test_scrape_endpoint_accepts_website_source(monkeypatch):
 
 
 def test_scrape_endpoint_accepts_ecommerce_source(monkeypatch):
+    fake_engine = FakeEngine(
+        ScrapeResult(
+            records=[
+                FakeRecord(
+                    name="Test Product",
+                    address="",
+                    source="ecommerce",
+                )
+            ]
+        )
+    )
+
     monkeypatch.setattr(
         app_module,
-        "build_job_service",
-        lambda source, database, job_store: FakeJobService(
-            FakeEngine(
-                ScrapeResult(
-                    records=[
-                        FakeRecord(
-                            name="Test Product",
-                            address="",
-                            source="ecommerce",
-                        )
-                    ]
-                )
-            ),
-            job_store,
-        ),
+        "build_engine",
+        lambda source, database: fake_engine,
     )
 
     response = client.post(
@@ -316,8 +272,6 @@ def test_scrape_endpoint_accepts_ecommerce_source(monkeypatch):
 
 def test_data_request_endpoint_uses_request_export_service(monkeypatch):
     """Verify /data-request executes the request and optional export."""
-    from scrapepro.core.result import ScrapeResult
-
     class FakeRequestExportService:
         def __init__(self):
             self.specification = None
@@ -332,13 +286,10 @@ def test_data_request_endpoint_uses_request_export_service(monkeypatch):
 
     fake_service = FakeRequestExportService()
 
-    class FakeJobService:
-        engine = object()
-
     monkeypatch.setattr(
         app_module,
-        "build_job_service",
-        lambda source, database, job_store: FakeJobService(),
+        "build_engine",
+        lambda source, database: object(),
     )
 
     monkeypatch.setattr(
@@ -373,10 +324,7 @@ def test_data_request_endpoint_uses_request_export_service(monkeypatch):
 
 
 def test_data_request_endpoint_without_output(monkeypatch):
-
     """Verify /data-request works without optional export."""
-    from scrapepro.core.result import ScrapeResult
-
     class FakeRequestExportService:
         def submit(self, specification):
             return (
@@ -384,15 +332,12 @@ def test_data_request_endpoint_without_output(monkeypatch):
                 None,
             )
 
-    class FakeJobService:
-        engine = object()
-
     fake_service = FakeRequestExportService()
 
     monkeypatch.setattr(
         app_module,
-        "build_job_service",
-        lambda source, database, job_store: FakeJobService(),
+        "build_engine",
+        lambda source, database: object(),
     )
 
     monkeypatch.setattr(

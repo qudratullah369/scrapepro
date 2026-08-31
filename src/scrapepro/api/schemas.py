@@ -14,31 +14,11 @@ class ScrapeRequest(BaseModel):
 
 
 class ScrapeResponse(BaseModel):
-    """Response returned after executing a scraping job."""
+    """Response returned after executing a scraping request."""
 
-    job_id: str
     status: str
     count: int
     errors: list[str]
     records: list[dict]
     output: str | None = None
     export_path: str | None = None
-
-
-class JobResponse(BaseModel):
-    """Response returned when retrieving a scraping job."""
-
-    job_id: str
-    status: str
-    count: int
-    errors: list[str]
-    records: list[dict]
-    output: str | None = None
-    export_path: str | None = None
-
-
-class JobNotFoundResponse(BaseModel):
-    """Response returned when a scraping job does not exist."""
-
-    job_id: str
-    status: str

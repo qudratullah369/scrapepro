@@ -3,8 +3,6 @@
 from scrapepro.config.settings import Settings
 from scrapepro.core.engine import ScrapeEngine
 from scrapepro.core.pipeline import Pipeline
-from scrapepro.jobs.service import JobService
-from scrapepro.jobs.store import JobStore
 from scrapepro.processors.cleaner import Cleaner
 from scrapepro.processors.deduplicator import Deduplicator
 from scrapepro.processors.enricher import Enricher
@@ -52,18 +50,15 @@ def build_pipeline(database: str) -> Pipeline:
     return pipeline
 
 
-def build_job_service(
+def build_engine(
     source: str,
     database: str,
-    job_store: JobStore,
-) -> JobService:
-    """Build the job service used by the API."""
+) -> ScrapeEngine:
+    """Build a scraping engine for the requested source."""
     scraper = build_scraper(source)
     pipeline = build_pipeline(database)
 
-    engine = ScrapeEngine(
+    return ScrapeEngine(
         scraper=scraper,
         pipeline=pipeline,
     )
-
-    return JobService(job_store, engine)
